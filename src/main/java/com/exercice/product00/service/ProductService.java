@@ -1,5 +1,6 @@
 package com.exercice.product00.service;
 
+import com.exercice.product00.exception.ResourceNotFoundException;
 import com.exercice.product00.model.Product;
 import com.exercice.product00.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +22,7 @@ public class ProductService {
     //GET or findById
     public Product findById(Long id) {
         return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Produto não encontrado com id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com id: " + id));
     }
     //POST OR create
     public Product create(Product product){
@@ -31,7 +32,7 @@ public class ProductService {
     //PUT OR UPDATE
     public  Product update( long id, Product product){
         Product entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Produto não encontrado com id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com id: " + id));
 
         entity.setNome(product.getNome());
         entity.setDescricao(product.getDescricao());
@@ -44,7 +45,7 @@ public class ProductService {
     //DELETE
     public void delete(Long id) {
         Product entity = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Produto não encontrado com id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com id: " + id));
 
         repository.delete(entity);
     }
