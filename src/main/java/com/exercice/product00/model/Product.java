@@ -15,16 +15,13 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    //validações dos dados recebidos
-    @NotBlank(message = "O nome é obrigatório")
+
     private String nome;
 
     private String descricao;
 
-    @DecimalMin(value = "0.01", message = "O preço deve ser maior que zero")
     private BigDecimal preco;
 
-    @Min(value = 0, message = "A quantidade em estoque não pode ser negativa")
     private Integer quantidadeEstoque;
 
     public Product() {
