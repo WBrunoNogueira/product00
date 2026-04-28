@@ -1,6 +1,7 @@
 package com.exercice.product00.service;
 
 import com.exercice.product00.dto.ProductRequestDTO;
+import com.exercice.product00.dto.ProductResponseDTO;
 import com.exercice.product00.exception.ResourceNotFoundException;
 import com.exercice.product00.model.Product;
 import com.exercice.product00.repository.ProductRepository;
@@ -22,13 +23,20 @@ public class ProductService {
     }
 
     //GET or findById
-    public Product findById(Long id) {
-        return repository.findById(id)
+    public ProductResponseDTO findById(Long id) {
+        Product product = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com id: " + id));
+        return  new ProductResponseDTO(
+                product.getId(),
+                product.getNome(),
+                product.getDescricao(),
+                product.getPreco(),
+                product.getQuantidadeEstoque()
+        );
     }
 
     //POST OR create
-    public Product create(ProductRequestDTO dto){
+    public ProductResponseDTO create(ProductRequestDTO dto) {
         Product product = new Product();
 
         product.setNome(dto.getNome());
@@ -36,13 +44,22 @@ public class ProductService {
         product.setPreco(dto.getPreco());
         product.setQuantidadeEstoque(dto.getQuantidadeEstoque());
 
-        return repository.save(product);
+        Product savedProduct = repository.save(product);
+
+        return new ProductResponseDTO(
+                savedProduct.getId(),
+                savedProduct.getNome(),
+                savedProduct.getDescricao(),
+                savedProduct.getPreco(),
+                savedProduct.getQuantidadeEstoque()
+        );
     }
 
     //PUT OR UPDATE
     public  Product update( long id, ProductRequestDTO dto){
         Product entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com id: " + id));
+
 
         entity.setNome(dto.getNome());
         entity.setDescricao(dto.getDescricao());

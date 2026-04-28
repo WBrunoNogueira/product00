@@ -1,36 +1,23 @@
-package com.exercice.product00.model;
-
-import jakarta.persistence.*;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
+package com.exercice.product00.dto;
 
 import java.math.BigDecimal;
 
-@Entity
-@Table(name = "produtos")
-public class Product {
+//O ProductResponseDTO representa os dados que sua API devolve para o cliente.
+public class ProductResponseDTO {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private String nome;
     private String descricao;
     private BigDecimal preco;
     private Integer quantidadeEstoque;
 
-    public Product() {
-    }
-
-    public Product(Long id, String nome, Long id1, String nome1, String descricao, BigDecimal preco, Integer quantidadeEstoque) {
+    public ProductResponseDTO(Long id, String nome, String descricao, BigDecimal preco, Integer quantidadeEstoque) {
         this.id = id;
         this.nome = nome;
         this.descricao = descricao;
         this.preco = preco;
         this.quantidadeEstoque = quantidadeEstoque;
     }
-
 
     public Long getId() {
         return id;

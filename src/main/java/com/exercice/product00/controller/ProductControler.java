@@ -1,11 +1,11 @@
 package com.exercice.product00.controller;
 
 import com.exercice.product00.dto.ProductRequestDTO;
+import com.exercice.product00.dto.ProductResponseDTO;
 import com.exercice.product00.model.Product;
 import com.exercice.product00.service.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.datasource.JdbcTransactionObjectSupport;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,15 +30,15 @@ public class ProductControler {
     }
         //findById  GET
     @GetMapping("/{id}")
-    public ResponseEntity<Product> findById(@PathVariable Long id) {
-        Product product = service.findById(id);
+    public ResponseEntity<ProductResponseDTO> findById(@PathVariable Long id) {
+        ProductResponseDTO product = service.findById(id);
         return ResponseEntity.ok(product);
     }
 
         //create POST
     @PostMapping
-    public ResponseEntity<Product> create(@Valid @RequestBody   ProductRequestDTO dto) {
-        Product createdProduct = service.create(dto);
+    public ResponseEntity<ProductResponseDTO> create(@Valid @RequestBody   ProductRequestDTO dto) {
+        ProductResponseDTO createdProduct = service.create(dto);
         return ResponseEntity.status(201).body(createdProduct);
     }
 
