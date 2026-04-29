@@ -2,7 +2,6 @@ package com.exercice.product00.controller;
 
 import com.exercice.product00.dto.ProductRequestDTO;
 import com.exercice.product00.dto.ProductResponseDTO;
-import com.exercice.product00.model.Product;
 import com.exercice.product00.service.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +23,8 @@ public class ProductControler {
     //endPonts
         //findAll GET
     @GetMapping
-    public ResponseEntity<List<Product>> findAll() {
-        List<Product> products = service.findAll();
+    public ResponseEntity<List<ProductResponseDTO>> findAll() {
+        List<ProductResponseDTO> products = service.findAll();
         return ResponseEntity.ok(products);
     }
         //findById  GET
@@ -44,11 +43,11 @@ public class ProductControler {
 
         //UPDATE PUT
     @PutMapping("/{id}")
-    public ResponseEntity<Product> update(
+    public ResponseEntity<ProductResponseDTO> update(
             @PathVariable Long id,
             @Valid  @RequestBody ProductRequestDTO dto
     ) {
-        Product updatedProduct = service.update(id, dto);
+        ProductResponseDTO updatedProduct = service.update(id, dto);
         return ResponseEntity.ok(updatedProduct);
     }
         //Delete
