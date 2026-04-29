@@ -1,39 +1,28 @@
-# Guia de Estudo — CRUD com Spring Boot, H2, Validações e DTOs
+# CRUD de Produtos com Spring Boot
 
-Este material resume o passo a passo feito durante a criação de uma API REST simples de **CRUD de produtos** usando **Spring Boot**, **Spring Data JPA**, **H2 Database**, **Bean Validation**, **tratamento de erros**, **DTOs** e **Postman**.
-
-O objetivo é servir como consulta para revisar depois o código e entender o papel de cada camada.
+Este README serve como material de consulta para o projeto de estudo de um CRUD REST usando **Spring Boot**, **Spring Data JPA**, **H2 Database**, **DTOs**, **Mapper**, **validações** e **tratamento de erros**.
 
 ---
 
 ## 1. Objetivo do projeto
 
-Criar uma API REST para gerenciar produtos.
+Criar uma API REST para cadastro de produtos, permitindo:
 
-A API permite:
-
-- Listar todos os produtos
-- Buscar produto por ID
-- Criar produto
-- Atualizar produto
-- Deletar produto
-- Validar dados de entrada
-- Retornar erro `404 Not Found` quando o produto não existir
-- Usar DTOs para separar entrada/saída da entidade do banco
-
-Endpoints finais:
-
-```http
-GET     /products
-GET     /products/{id}
-POST    /products
-PUT     /products/{id}
-DELETE  /products/{id}
-```
+- listar produtos;
+- buscar produto por ID;
+- criar produto;
+- atualizar produto;
+- deletar produto;
+- validar dados de entrada;
+- tratar erros de forma adequada;
+- separar entidade de banco dos dados de entrada e saída usando DTOs;
+- centralizar conversões usando Mapper.
 
 ---
 
-## 2. Estrutura final do projeto
+## 2. Estrutura do projeto
+
+Estrutura final sugerida:
 
 ```text
 com.exercice.product00
@@ -45,72 +34,19 @@ com.exercice.product00
  ├── exception
  │   ├── ResourceNotFoundException.java
  │   └── GlobalExceptionHandler.java
+ ├── mapper
+ │   └── ProductMapper.java
  ├── model
  │   └── Product.java
  ├── repository
  │   └── ProductRepository.java
- ├── service
- │   └── ProductService.java
- └── Product00Application.java
-```
-
-Responsabilidade de cada camada:
-
-| Camada | Responsabilidade |
-|---|---|
-| `model` | Representa a entidade/tabela do banco |
-| `dto` | Representa os dados de entrada e saída da API |
-| `repository` | Faz comunicação com o banco de dados |
-| `service` | Contém as regras e operações do sistema |
-| `controller` | Expõe os endpoints REST |
-| `exception` | Centraliza os tratamentos de erro |
-
-Fluxo geral da aplicação:
-
-```text
-Postman
-  ↓
-Controller
-  ↓
-Service
-  ↓
-Repository
-  ↓
-H2 Database
+ └── service
+     └── ProductService.java
 ```
 
 ---
 
-## 3. Dependências principais
-
-No `pom.xml`, foram usadas dependências como:
-
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-web</artifactId>
-</dependency>
-
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-data-jpa</artifactId>
-</dependency>
-
-<dependency>
-    <groupId>com.h2database</groupId>
-    <artifactId>h2</artifactId>
-    <scope>runtime</scope>
-</dependency>
-
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-validation</artifactId>
-</dependency>
-```
-
----
-
-## 4. Configuração do H2 no `application.yml`
+## 3. Configuração do banco H2
 
 Arquivo:
 
@@ -118,7 +54,7 @@ Arquivo:
 src/main/resources/application.yml
 ```
 
-Configuração usada:
+Exemplo usando H2 em memória:
 
 ```yaml
 spring:
@@ -157,17 +93,31 @@ User Name: root
 Password: admin
 ```
 
-Consulta para testar:
+Se quiser acessar melhor pelo Database Plugin do IntelliJ, prefira H2 em arquivo:
 
-```sql
-SELECT * FROM PRODUCTS;
+```yaml
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/produtosdb
+    driver-class-name: org.h2.Driver
+    username: root
+    password: admin
 ```
 
-Observação: como foi usado `jdbc:h2:mem`, o banco existe apenas enquanto a aplicação estiver rodando.
+No IntelliJ:
+
+```text
+Database → + → Data Source → H2
+URL: jdbc:h2:file:./data/produtosdb
+User: root
+Password: admin
+```
 
 ---
 
-## 5. Entidade `Product`
+## 4. Entity / Model
+
+A classe `Product` representa a tabela do banco de dados.
 
 Arquivo:
 
@@ -175,7 +125,7 @@ Arquivo:
 model/Product.java
 ```
 
-A entidade representa a tabela do banco.
+Exemplo:
 
 ```java
 package com.exercice.product00.model;
@@ -200,6 +150,9 @@ public class Product {
     private String descricao;
     private BigDecimal preco;
     private Integer quantidadeEstoque;
+
+    public Product() {
+    }
 
     public Long getId() {
         return id;
@@ -243,24 +196,22 @@ public class Product {
 }
 ```
 
-Pontos importantes:
+Observação:
 
-- `@Entity`: informa que a classe é uma entidade JPA.
-- `@Table(name = "products")`: define o nome da tabela.
-- `@Id`: define a chave primária.
-- `@GeneratedValue(strategy = GenerationType.IDENTITY)`: deixa o banco gerar o ID automaticamente.
-
-As validações foram removidas daqui e colocadas no DTO de entrada.
+- `Product` é a entidade do banco.
+- As validações de entrada ficam no `ProductRequestDTO`, não na entidade.
 
 ---
 
-## 6. Repository
+## 5. Repository
 
 Arquivo:
 
 ```text
 repository/ProductRepository.java
 ```
+
+Código:
 
 ```java
 package com.exercice.product00.repository;
@@ -272,7 +223,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 }
 ```
 
-Ao estender `JpaRepository<Product, Long>`, o Spring já fornece métodos prontos:
+Ao estender `JpaRepository`, o Spring já fornece métodos prontos:
 
 ```java
 findAll();
@@ -284,36 +235,27 @@ existsById(id);
 
 ---
 
-## 7. DTOs
+## 6. DTOs
 
 DTO significa **Data Transfer Object**.
 
-Ele serve para transportar dados entre a API e o cliente, sem expor diretamente a entidade do banco.
+No projeto, os DTOs separam os dados da API da entidade do banco.
 
-Neste projeto ficaram três papéis:
-
-```text
-Product
-→ entidade do banco
-
-ProductRequestDTO
-→ dados que entram na API
-
-ProductResponseDTO
-→ dados que saem da API
-```
-
-Resumo mental:
+Resumo:
 
 ```text
-RequestDTO = o que chega
-Product    = o que vai para o banco
-ResponseDTO = o que volta para o cliente
+ProductRequestDTO  → dados que chegam na API
+ProductResponseDTO → dados que saem da API
+Product            → entidade do banco
 ```
 
 ---
 
-## 8. `ProductRequestDTO`
+## 6.1 ProductRequestDTO
+
+Usado no `POST` e no `PUT`.
+
+Ele representa os dados enviados pelo cliente.
 
 Arquivo:
 
@@ -321,7 +263,7 @@ Arquivo:
 dto/ProductRequestDTO.java
 ```
 
-Esse DTO é usado no `POST` e no `PUT`, ou seja, nos dados que chegam na API.
+Código:
 
 ```java
 package com.exercice.product00.dto;
@@ -363,9 +305,9 @@ public class ProductRequestDTO {
 }
 ```
 
-Por que ele não tem `id`?
+Por que o `ProductRequestDTO` não tem `id`?
 
-Porque o cliente não deve informar o ID ao criar um produto. O ID é gerado pelo banco.
+Porque o `id` é gerado automaticamente pelo banco.
 
 Exemplo de JSON de entrada:
 
@@ -380,7 +322,9 @@ Exemplo de JSON de entrada:
 
 ---
 
-## 9. `ProductResponseDTO`
+## 6.2 ProductResponseDTO
+
+Usado para devolver dados ao cliente.
 
 Arquivo:
 
@@ -388,7 +332,7 @@ Arquivo:
 dto/ProductResponseDTO.java
 ```
 
-Esse DTO é usado para devolver dados ao cliente.
+Código:
 
 ```java
 package com.exercice.product00.dto;
@@ -433,7 +377,7 @@ public class ProductResponseDTO {
 }
 ```
 
-Exemplo de JSON de saída:
+Exemplo de JSON de resposta:
 
 ```json
 {
@@ -447,152 +391,80 @@ Exemplo de JSON de saída:
 
 ---
 
-## 10. Explicação humana sobre DTO
+## 7. Mapper
 
-Pense que existem três caixas:
+O `Mapper` é uma classe responsável por converter objetos.
 
-```text
-1. ProductRequestDTO
-   Caixa que recebe o pedido do cliente.
+Ele evita que o `Service` fique cheio de código de conversão manual.
 
-2. Product
-   Caixa que o banco entende.
-
-3. ProductResponseDTO
-   Caixa organizada para devolver a resposta ao cliente.
-```
-
-Fluxo no `POST`:
+Resumo:
 
 ```text
-Cliente manda JSON pelo Postman
-        ↓
-Controller recebe como ProductRequestDTO
-        ↓
-Service cria um Product com esses dados
-        ↓
-Repository salva Product no banco
-        ↓
-Banco gera o ID
-        ↓
-Service monta ProductResponseDTO
-        ↓
-Controller devolve a resposta
+ProductRequestDTO → Product
+Product           → ProductResponseDTO
+ProductRequestDTO → Product existente
 ```
-
-DTO não é a mesma coisa que getter/setter.
-
-```text
-DTO
-→ classe usada para transportar dados
-
-get/set
-→ métodos usados para pegar ou colocar valores dentro de um objeto
-```
-
----
-
-## 11. Exception personalizada
 
 Arquivo:
 
 ```text
-exception/ResourceNotFoundException.java
+mapper/ProductMapper.java
 ```
 
+Código:
+
 ```java
-package com.exercice.product00.exception;
+package com.exercice.product00.mapper;
 
-public class ResourceNotFoundException extends RuntimeException {
+import com.exercice.product00.dto.ProductRequestDTO;
+import com.exercice.product00.dto.ProductResponseDTO;
+import com.exercice.product00.model.Product;
+import org.springframework.stereotype.Component;
 
-    public ResourceNotFoundException(String message) {
-        super(message);
+@Component
+public class ProductMapper {
+
+    public Product toEntity(ProductRequestDTO dto) {
+        Product product = new Product();
+
+        product.setNome(dto.getNome());
+        product.setDescricao(dto.getDescricao());
+        product.setPreco(dto.getPreco());
+        product.setQuantidadeEstoque(dto.getQuantidadeEstoque());
+
+        return product;
+    }
+
+    public ProductResponseDTO toResponseDTO(Product product) {
+        return new ProductResponseDTO(
+                product.getId(),
+                product.getNome(),
+                product.getDescricao(),
+                product.getPreco(),
+                product.getQuantidadeEstoque()
+        );
+    }
+
+    public void updateEntity(Product product, ProductRequestDTO dto) {
+        product.setNome(dto.getNome());
+        product.setDescricao(dto.getDescricao());
+        product.setPreco(dto.getPreco());
+        product.setQuantidadeEstoque(dto.getQuantidadeEstoque());
     }
 }
 ```
 
-Essa exception representa o erro de recurso não encontrado.
-
-Exemplo:
+Explicação simples:
 
 ```text
-Produto não encontrado com id: 999
+DTO = objeto usado pela API
+Entity = objeto usado pelo banco
+Mapper = classe que traduz um para o outro
 ```
 
 ---
 
-## 12. Tratamento global de erros
-
-Arquivo:
-
-```text
-exception/GlobalExceptionHandler.java
-```
-
-Exemplo de implementação:
-
-```java
-package com.exercice.product00.exception;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.util.HashMap;
-import java.util.Map;
-
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleResourceNotFound(ResourceNotFoundException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("message", ex.getMessage());
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationErrors(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-
-        ex.getBindingResult().getFieldErrors().forEach(error -> {
-            errors.put(error.getField(), error.getDefaultMessage());
-        });
-
-        return ResponseEntity.badRequest().body(errors);
-    }
-}
-```
-
-O que ele faz:
-
-- `ResourceNotFoundException` vira `404 Not Found`.
-- Erros de validação viram `400 Bad Request`.
-
-Exemplo de erro `404`:
-
-```json
-{
-  "message": "Produto não encontrado com id: 999"
-}
-```
-
-Exemplo de erro `400`:
-
-```json
-{
-  "nome": "O nome é obrigatório",
-  "preco": "O preço deve ser maior que zero",
-  "quantidadeEstoque": "A quantidade em estoque não pode ser negativa"
-}
-```
-
----
-
-## 13. Service com DTOs
+## 8. Service usando DTOs e Mapper
 
 Arquivo:
 
@@ -600,12 +472,15 @@ Arquivo:
 service/ProductService.java
 ```
 
+Exemplo:
+
 ```java
 package com.exercice.product00.service;
 
 import com.exercice.product00.dto.ProductRequestDTO;
 import com.exercice.product00.dto.ProductResponseDTO;
 import com.exercice.product00.exception.ResourceNotFoundException;
+import com.exercice.product00.mapper.ProductMapper;
 import com.exercice.product00.model.Product;
 import com.exercice.product00.repository.ProductRepository;
 import org.springframework.stereotype.Service;
@@ -616,21 +491,17 @@ import java.util.List;
 public class ProductService {
 
     private final ProductRepository repository;
+    private final ProductMapper mapper;
 
-    public ProductService(ProductRepository repository) {
+    public ProductService(ProductRepository repository, ProductMapper mapper) {
         this.repository = repository;
+        this.mapper = mapper;
     }
 
     public List<ProductResponseDTO> findAll() {
         return repository.findAll()
                 .stream()
-                .map(product -> new ProductResponseDTO(
-                        product.getId(),
-                        product.getNome(),
-                        product.getDescricao(),
-                        product.getPreco(),
-                        product.getQuantidadeEstoque()
-                ))
+                .map(mapper::toResponseDTO)
                 .toList();
     }
 
@@ -638,52 +509,24 @@ public class ProductService {
         Product product = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com id: " + id));
 
-        return new ProductResponseDTO(
-                product.getId(),
-                product.getNome(),
-                product.getDescricao(),
-                product.getPreco(),
-                product.getQuantidadeEstoque()
-        );
+        return mapper.toResponseDTO(product);
     }
 
     public ProductResponseDTO create(ProductRequestDTO dto) {
-        Product product = new Product();
-
-        product.setNome(dto.getNome());
-        product.setDescricao(dto.getDescricao());
-        product.setPreco(dto.getPreco());
-        product.setQuantidadeEstoque(dto.getQuantidadeEstoque());
-
+        Product product = mapper.toEntity(dto);
         Product savedProduct = repository.save(product);
-
-        return new ProductResponseDTO(
-                savedProduct.getId(),
-                savedProduct.getNome(),
-                savedProduct.getDescricao(),
-                savedProduct.getPreco(),
-                savedProduct.getQuantidadeEstoque()
-        );
+        return mapper.toResponseDTO(savedProduct);
     }
 
     public ProductResponseDTO update(Long id, ProductRequestDTO dto) {
         Product entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com id: " + id));
 
-        entity.setNome(dto.getNome());
-        entity.setDescricao(dto.getDescricao());
-        entity.setPreco(dto.getPreco());
-        entity.setQuantidadeEstoque(dto.getQuantidadeEstoque());
+        mapper.updateEntity(entity, dto);
 
         Product updatedProduct = repository.save(entity);
 
-        return new ProductResponseDTO(
-                updatedProduct.getId(),
-                updatedProduct.getNome(),
-                updatedProduct.getDescricao(),
-                updatedProduct.getPreco(),
-                updatedProduct.getQuantidadeEstoque()
-        );
+        return mapper.toResponseDTO(updatedProduct);
     }
 
     public void delete(Long id) {
@@ -695,33 +538,35 @@ public class ProductService {
 }
 ```
 
-### O que acontece no `create`
+Fluxo do `create`:
 
 ```text
-ProductRequestDTO dto
+ProductRequestDTO
         ↓
-new Product()
+ProductMapper.toEntity(dto)
         ↓
-copia os campos do DTO para a entidade Product
+Product
         ↓
 repository.save(product)
         ↓
-Product salvo com ID
+Product salvo com id
         ↓
-new ProductResponseDTO(...)
+ProductMapper.toResponseDTO(savedProduct)
         ↓
-retorna resposta para o Controller
+ProductResponseDTO
 ```
 
 ---
 
-## 14. Controller com DTOs
+## 9. Controller usando DTOs
 
 Arquivo:
 
 ```text
 controller/ProductControler.java
 ```
+
+Exemplo:
 
 ```java
 package com.exercice.product00.controller;
@@ -787,23 +632,180 @@ public class ProductControler {
 }
 ```
 
-Pontos importantes:
+Resumo dos endpoints:
 
-- `@RestController`: indica que a classe expõe endpoints REST.
-- `@RequestMapping("/products")`: define a rota base.
-- `@GetMapping`: lista ou busca produtos.
-- `@PostMapping`: cria produto.
-- `@PutMapping`: atualiza produto.
-- `@DeleteMapping`: deleta produto.
-- `@Valid`: ativa validações do `ProductRequestDTO`.
-- `@RequestBody`: transforma JSON em objeto Java.
-- `@PathVariable`: pega o ID da URL.
+```text
+GET     /products       → listar produtos
+GET     /products/{id}  → buscar produto por ID
+POST    /products       → criar produto
+PUT     /products/{id}  → atualizar produto
+DELETE  /products/{id}  → deletar produto
+```
 
 ---
 
-## 15. Testes no Postman
+## 10. Tratamento de erro 404
 
-### 15.1 Listar produtos
+Criar uma exception personalizada ajuda a representar melhor quando um produto não é encontrado.
+
+Arquivo:
+
+```text
+exception/ResourceNotFoundException.java
+```
+
+Código:
+
+```java
+package com.exercice.product00.exception;
+
+public class ResourceNotFoundException extends RuntimeException {
+
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}
+```
+
+Essa exception é usada no service:
+
+```java
+.orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com id: " + id));
+```
+
+---
+
+## 11. GlobalExceptionHandler
+
+O `GlobalExceptionHandler` centraliza o tratamento de erros da API.
+
+Arquivo:
+
+```text
+exception/GlobalExceptionHandler.java
+```
+
+Exemplo:
+
+```java
+package com.exercice.product00.exception;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleResourceNotFound(ResourceNotFoundException ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("message", ex.getMessage());
+
+        return ResponseEntity.status(404).body(error);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidationErrors(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+
+        ex.getBindingResult().getFieldErrors().forEach(error -> {
+            errors.put(error.getField(), error.getDefaultMessage());
+        });
+
+        return ResponseEntity.badRequest().body(errors);
+    }
+}
+```
+
+Quando o produto não existe, a API retorna:
+
+```http
+404 Not Found
+```
+
+Exemplo:
+
+```json
+{
+  "message": "Produto não encontrado com id: 999"
+}
+```
+
+Quando os dados são inválidos, a API retorna:
+
+```http
+400 Bad Request
+```
+
+Exemplo:
+
+```json
+{
+  "nome": "O nome é obrigatório",
+  "preco": "O preço deve ser maior que zero",
+  "quantidadeEstoque": "A quantidade em estoque não pode ser negativa"
+}
+```
+
+---
+
+## 12. Validações
+
+Dependência no `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+```
+
+As validações ficam no `ProductRequestDTO`:
+
+```java
+@NotBlank(message = "O nome é obrigatório")
+private String nome;
+
+@DecimalMin(value = "0.01", message = "O preço deve ser maior que zero")
+private BigDecimal preco;
+
+@Min(value = 0, message = "A quantidade em estoque não pode ser negativa")
+private Integer quantidadeEstoque;
+```
+
+No controller, a validação é ativada com `@Valid`:
+
+```java
+@PostMapping
+public ResponseEntity<ProductResponseDTO> create(@Valid @RequestBody ProductRequestDTO dto) {
+    ProductResponseDTO createdProduct = service.create(dto);
+    return ResponseEntity.status(201).body(createdProduct);
+}
+```
+
+E também no `PUT`:
+
+```java
+@PutMapping("/{id}")
+public ResponseEntity<ProductResponseDTO> update(
+        @PathVariable Long id,
+        @Valid @RequestBody ProductRequestDTO dto
+) {
+    ProductResponseDTO updatedProduct = service.update(id, dto);
+    return ResponseEntity.ok(updatedProduct);
+}
+```
+
+---
+
+## 13. Testes no Postman
+
+### 13.1 Listar produtos
 
 ```http
 GET http://localhost:8080/products
@@ -815,15 +817,9 @@ Esperado:
 200 OK
 ```
 
-Se não houver produtos:
-
-```json
-[]
-```
-
 ---
 
-### 15.2 Criar produto
+### 13.2 Criar produto
 
 ```http
 POST http://localhost:8080/products
@@ -860,7 +856,7 @@ Resposta:
 
 ---
 
-### 15.3 Buscar por ID
+### 13.3 Buscar por ID
 
 ```http
 GET http://localhost:8080/products/1
@@ -874,7 +870,7 @@ Esperado:
 
 ---
 
-### 15.4 Atualizar produto
+### 13.4 Atualizar produto
 
 ```http
 PUT http://localhost:8080/products/1
@@ -899,7 +895,7 @@ Esperado:
 
 ---
 
-### 15.5 Deletar produto
+### 13.5 Deletar produto
 
 ```http
 DELETE http://localhost:8080/products/1
@@ -913,7 +909,7 @@ Esperado:
 
 ---
 
-### 15.6 Testar erro 404
+### 13.6 Testar produto inexistente
 
 ```http
 GET http://localhost:8080/products/999
@@ -925,7 +921,7 @@ Esperado:
 404 Not Found
 ```
 
-Exemplo de body:
+Exemplo:
 
 ```json
 {
@@ -935,7 +931,7 @@ Exemplo de body:
 
 ---
 
-### 15.7 Testar validação 400
+### 13.7 Testar validação
 
 ```http
 POST http://localhost:8080/products
@@ -958,7 +954,7 @@ Esperado:
 400 Bad Request
 ```
 
-Exemplo de body:
+Exemplo:
 
 ```json
 {
@@ -970,45 +966,35 @@ Exemplo de body:
 
 ---
 
-## 16. Collection no Postman
+## 14. Collection no Postman
 
-Foi criada uma collection para organizar os testes.
-
-Nome sugerido:
+Sugestão de collection:
 
 ```text
 CRUD Products
 ```
 
-Variável sugerida:
-
-| Variable | Initial value | Current value |
-|---|---|---|
-| `baseUrl` | `http://localhost:8080` | `http://localhost:8080` |
-
-URLs usando variável:
-
-```http
-{{baseUrl}}/products
-{{baseUrl}}/products/1
-```
-
-Ordem recomendada de execução:
+Variável:
 
 ```text
-1. GET     /products
-2. POST    /products
-3. GET     /products/1
-4. PUT     /products/1
-5. DELETE  /products/1
-6. GET     /products/1
+baseUrl = http://localhost:8080
+```
+
+Requests:
+
+```text
+GET     {{baseUrl}}/products
+GET     {{baseUrl}}/products/1
+POST    {{baseUrl}}/products
+PUT     {{baseUrl}}/products/1
+DELETE  {{baseUrl}}/products/1
 ```
 
 ---
 
-## 17. Erros corrigidos durante o processo
+## 15. Erros encontrados e correções
 
-### 17.1 `ProductService` não encontrado como bean
+### 15.1 Bean do Service não encontrado
 
 Erro:
 
@@ -1016,10 +1002,10 @@ Erro:
 Parameter 0 of constructor in ProductControler required a bean of type ProductService that could not be found
 ```
 
-Causa:
+Causa comum:
 
 ```text
-ProductService estava sem @Service ou fora do pacote escaneado pelo Spring.
+ProductService estava sem @Service
 ```
 
 Correção:
@@ -1032,7 +1018,7 @@ public class ProductService {
 
 ---
 
-### 17.2 `Ambiguous mapping`
+### 15.2 Ambiguous mapping
 
 Erro:
 
@@ -1040,88 +1026,127 @@ Erro:
 Ambiguous mapping. Cannot map 'productControler' method
 ```
 
-Causa:
+Causa comum:
 
-Dois endpoints estavam com o mesmo mapeamento, por exemplo:
+Dois endpoints com a mesma rota, por exemplo:
 
 ```java
 @GetMapping
-public ResponseEntity<List<ProductResponseDTO>> findAll() { ... }
+public ResponseEntity<List<ProductResponseDTO>> findAll() { }
 
 @GetMapping
-public ResponseEntity<ProductResponseDTO> findById(Long id) { ... }
+public ResponseEntity<ProductResponseDTO> findById(Long id) { }
 ```
 
 Correção:
 
-O `findById` precisa receber o `id` na rota:
-
 ```java
+@GetMapping
+public ResponseEntity<List<ProductResponseDTO>> findAll() { }
+
 @GetMapping("/{id}")
-public ResponseEntity<ProductResponseDTO> findById(@PathVariable Long id) { ... }
-```
-
-Resumo:
-
-```text
-findAll  → GET /products
-findById → GET /products/{id}
+public ResponseEntity<ProductResponseDTO> findById(@PathVariable Long id) { }
 ```
 
 ---
 
-## 18. Situação atual do projeto
+## 16. Situação atual do projeto
 
-Até aqui, o CRUD possui:
+Até aqui, o projeto possui:
 
 ```text
-Model
-Repository
-Service
-Controller
-H2 Database
-Postman Collection
-ResourceNotFoundException
-GlobalExceptionHandler
+CRUD completo
+H2 configurado
+Endpoints REST
+Postman funcionando
+Tratamento de erro 404
+Tratamento de erro 400
 Validações com Bean Validation
 ProductRequestDTO
 ProductResponseDTO
+ProductMapper
+Service usando Mapper
+Controller usando DTOs
 ```
 
-A API já consegue:
+Fluxo atual da aplicação:
 
-- Criar produto com `POST`
-- Listar produtos com `GET`
-- Buscar produto por ID com `GET /{id}`
-- Atualizar produto com `PUT`
-- Deletar produto com `DELETE`
-- Retornar `404` quando produto não existe
-- Retornar `400` quando dados inválidos são enviados
-- Separar entidade de banco dos dados de entrada e saída da API
+```text
+Postman
+  ↓
+Controller
+  ↓
+ProductRequestDTO
+  ↓
+Service
+  ↓
+Mapper
+  ↓
+Product Entity
+  ↓
+Repository
+  ↓
+H2 Database
+  ↓
+ProductResponseDTO
+  ↓
+Resposta HTTP
+```
 
 ---
 
-## 19. Próximo passo recomendado
+## 17. Próximos passos recomendados
 
-O próximo passo recomendado é criar um **mapper** para evitar repetir conversão manual no service.
+Depois dessa etapa, os próximos passos são:
 
-Hoje existem trechos repetidos como:
+1. Criar testes unitários para o `ProductService`.
+2. Criar testes do `Controller` usando `MockMvc`.
+3. Melhorar o padrão de resposta de erro com `timestamp`, `status` e `message`.
+4. Substituir H2 por PostgreSQL usando Docker Compose.
+5. Adicionar migrations com Flyway.
+6. Criar documentação da API com Swagger/OpenAPI.
 
-```java
-return new ProductResponseDTO(
-        product.getId(),
-        product.getNome(),
-        product.getDescricao(),
-        product.getPreco(),
-        product.getQuantidadeEstoque()
-);
+Ordem recomendada:
+
+```text
+1. Testes unitários do ProductService
+2. Testes do Controller com MockMvc
+3. Padronização avançada dos erros
+4. PostgreSQL com Docker
+5. Flyway
+6. Swagger
 ```
 
-Um mapper centralizaria isso em métodos como:
+---
 
-```java
-Product toEntity(ProductRequestDTO dto)
-ProductResponseDTO toResponseDTO(Product product)
+## 18. Conceitos principais aprendidos
+
+```text
+REST
+Controller
+Service
+Repository
+Entity
+DTO
+Mapper
+ResponseEntity
+@PathVariable
+@RequestBody
+@Valid
+Exception personalizada
+GlobalExceptionHandler
+H2 Database
+Postman Collection
 ```
 
-Isso deixa o service mais limpo e mais fácil de manter.
+Resumo final:
+
+```text
+RequestDTO = o que chega na API
+Product = o que vai para o banco
+ResponseDTO = o que sai da API
+Mapper = quem converte os objetos
+Service = quem organiza o fluxo
+Repository = quem acessa o banco
+Controller = quem expõe os endpoints
+```
